@@ -1,11 +1,15 @@
 const express = require('express')
+const axios = require('axios');
 const app = express()
 var cors = require('cors')
 require('dotenv').config()
 
 app.use(cors())
+app.use(express.json())
 
 const WooCommerceRestApi = require("@woocommerce/woocommerce-rest-api").default;
+
+const loyalityUrl = process.env.LOYALITY_URL;
 
 const api = new WooCommerceRestApi({
   url: "https://www.cartaloq.com",
@@ -24,6 +28,14 @@ async function getProductById(pId) {
   return api.get(`products/${pId}`)
 }
 
+async function getProductVariationsById(pId) {
+  return api.get(`products/${pId}/variations`)
+}
+
+async function getProductVariationByVariationId(pId, vId) {
+  return api.get(`products/${pId}/variations/${vId}`)
+}
+
 app.get('/', (req, res) => {
   res.send('Hello')
 })
@@ -35,12 +47,70 @@ app.get('/products/:productId', async (req, res) => {
     res.json(product.data)
 })
 
+app.get('/products/:productId/variations', async (req, res) => {
+  // let ra = req.headers['x-forwarded-for'] || req.socket.remoteAddress
+  // console.log(ra)
+    product = await getProductVariationsById(req.params.productId)
+    res.json(product.data)
+})
+
+app.get('/products/:productId/variations/:variationId', async (req, res) => {
+  // let ra = req.headers['x-forwarded-for'] || req.socket.remoteAddress
+  // console.log(ra)
+    product = await getProductVariationByVariationId(req.params.productId, req.params.variationId)
+    res.json(product.data)
+})
+
 app.get('/products', async (req, res) => {
   if(!req.query.search) {
     res.json([])
   }
     products = await searchProducts(req.query.search)
     res.json(products.data)
+})
+
+app.get('/getTestCifNumber', async (req, res) => {
+  res.json('CM955834')
+})
+
+app.post('/memberName', async(req, res) => {
+  cifnumber = req.body.cifnumber
+  axios.post(`${loyalityUrl}/GetMemberName`, {
+    "cifnumber": cifnumber
+  }, {
+    auth: {
+      username: process.env.LOYALITY_USERNAME,
+      password: process.env.LOYALITY_PASSWORD
+    }
+  }
+  
+  ).then(response => {
+    res.json(response.data.GetMemberNameResult.membername)
+  })
+  .catch(error => {
+    console.log(error);
+    res.json(null)
+  });
+})
+
+app.post('/memberTotalPoints', async(req, res) => {
+  cifnumber = req.body.cifnumber
+  axios.post(`${loyalityUrl}/GetMemberPoint`, {
+    "cifnumber": cifnumber
+  }, {
+    auth: {
+      username: process.env.LOYALITY_USERNAME,
+      password: process.env.LOYALITY_PASSWORD
+    }
+  }
+  
+  ).then(response => {
+    res.json(response.data.GetMemberPointResult.memberpoint)
+  })
+  .catch(error => {
+    console.log(error);
+    res.json(null)
+  });
 })
 
 const port = process.env.PORT || 8000
