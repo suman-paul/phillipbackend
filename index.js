@@ -1,5 +1,6 @@
 const express = require('express')
 const axios = require('axios');
+const AesEncryption = require('aes-encryption')
 const app = express()
 var cors = require('cors')
 require('dotenv').config()
@@ -111,6 +112,29 @@ app.post('/memberTotalPoints', async(req, res) => {
     console.log(error);
     res.json(null)
   });
+})
+
+app.post('/sendEncryptedCif', async(req, res) => {
+  const encrypted_cifnumber_hex = req.body.encrypted_cifnumber_hex
+  if(encrypted_cifnumber_hex) {
+    console.log(encrypted_cifnumber_hex)
+    const aes = new AesEncryption()
+    aes.setSecretKey('11122233344455566677788822244455555555555555555231231321313aaaff')
+    try {
+      const decrypted = aes.decrypt(encrypted_cifnumber_hex)
+      console.log('decrypted >>>>>>', decrypted)
+      res.statusCode = 200
+      res.send("CifNumber recorded Sucessfully")
+    } catch (error) {
+      res.statusCode = 500
+      res.send(error.reason)
+    }
+  } else {
+    res.statusCode = 400
+    res.send("Enter encrypted_cifnumber_hex in body")
+  }
+  
+  
 })
 
 const port = process.env.PORT || 8000
