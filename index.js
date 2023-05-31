@@ -370,7 +370,7 @@ app.post('/', async(req, res) => {
   const encrypted_cifnumber = req.body.encrypted_cifnumber
   if(encrypted_cifnumber) {
     try {
-      jwt.verify(token, jwtSecretToken, function(err, decoded) {
+      jwt.verify(encrypted_cifnumber, jwtSecretToken, function(err, decoded) {
         if(err) {
           res.statusCode = 500
           res.send(err)
