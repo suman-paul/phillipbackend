@@ -4,6 +4,7 @@ const AesEncryption = require('aes-encryption')
 const { randomUUID } = require('crypto');
 const app = express()
 var cors = require('cors');
+var jwt = require('jsonwebtoken');
 const { db } = require('./firebase-config-server');
 const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } = require("firebase/firestore");
 require('dotenv').config()
@@ -372,7 +373,7 @@ app.post('/', async(req, res) => {
     try {
       jwt.verify(encrypted_cifnumber, jwtSecretToken, function(err, decoded) {
         if(err) {
-          res.statusCode = 500
+          res.statusCode = 422
           res.send(err)
         } else {
           res.statusCode = 200
@@ -382,6 +383,7 @@ app.post('/', async(req, res) => {
       });
     } catch (error) {
       res.statusCode = 500
+      console.log(error)
       res.send(error.reason)
     }
   } else {
