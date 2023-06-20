@@ -7,9 +7,11 @@ var cors = require('cors');
 var jwt = require('jsonwebtoken');
 const { db } = require('./firebase-config-server');
 const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } = require("firebase/firestore");
+const path = require('path');
 require('dotenv').config()
 
 app.use(cors())
+app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.json())
 
 const WooCommerceRestApi = require("@woocommerce/woocommerce-rest-api").default;
@@ -367,8 +369,9 @@ app.post('/sendEncryptedCif', async(req, res) => {
   }
 })
 
-app.post('/', async(req, res) => {
+app.post('/getCifnumberFromToken', async(req, res) => {
   const encrypted_cifnumber = req.body.encrypted_cifnumber
+  console.log(encrypted_cifnumber)
   if(encrypted_cifnumber) {
     try {
       jwt.verify(encrypted_cifnumber, jwtSecretToken, function(err, decoded) {
@@ -377,8 +380,9 @@ app.post('/', async(req, res) => {
           res.send(err)
         } else {
           res.statusCode = 200
-          res.send(decoded)
-          console.log(decoded)
+          const cifnumber = decoded.cifnumber;
+          // console.log(cifnumber)
+          res.send(cifnumber)
         }
       });
     } catch (error) {
@@ -390,6 +394,10 @@ app.post('/', async(req, res) => {
     res.statusCode = 400
     res.send("Enter encrypted_cifnumber in body")
   }
+})
+
+app.get('/', async (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 })
 
 const port = process.env.PORT || 8000
