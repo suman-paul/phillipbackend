@@ -295,6 +295,7 @@ app.post('/payForCart', async(req, res) => {
     const appliedPoints = cartData?.appliedPoints
     let price = 0
     if(!products) {
+      console.log("products is null")
       res.status(500).send() //if products is null then internal server error
       return
     }
@@ -305,6 +306,7 @@ app.post('/payForCart', async(req, res) => {
         (await getProductVariationByVariationId(pId, vId)).data :
         (await getProductById(pId)).data
       if(!product) {
+        console.log("product is null")
         res.status(500).send() //if no product then internal server error
         return
       } 
@@ -314,6 +316,7 @@ app.post('/payForCart', async(req, res) => {
     const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
     const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
     if(!paymentLinkData) {
+      console.log("paymentLinkData is null")
       res.status(500).send()
       return
     }
@@ -322,6 +325,7 @@ app.post('/payForCart', async(req, res) => {
     if(paymentLink) {
       res.status(200).json(paymentLinkData)
     } else {
+      console.log("paymentLink is null")
       res.status(500).send()
     }
   } else {
@@ -371,7 +375,7 @@ app.post('/sendEncryptedCif', async(req, res) => {
 
 app.post('/getCifnumberFromToken', async(req, res) => {
   const encrypted_cifnumber = req.body.encrypted_cifnumber
-  console.log(encrypted_cifnumber)
+  // console.log(encrypted_cifnumber)
   if(encrypted_cifnumber) {
     try {
       jwt.verify(encrypted_cifnumber, jwtSecretToken, function(err, decoded) {
