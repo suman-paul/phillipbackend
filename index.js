@@ -413,6 +413,10 @@ app.get('/', async (req, res) => {
 
 const port = process.env.PORT || 8000
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`listening on port ${port}`)
+  const paymentLinkData = await getPaymentLink(2.22, "CM955834")
+    console.log(paymentLinkData)
+  
 })
+
