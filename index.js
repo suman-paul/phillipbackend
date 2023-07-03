@@ -107,7 +107,11 @@ const getPaymentLink = async (amount, cifnumber) => {
     "client_secret": process.env.PHILLIP_PAY_CLIENT_SECRET,
     "scope": "txn-create"
   }).then(response => {
-    const token = response.data.access_token
+    console.log("0ff")
+    console.log(response)
+    const token = response?.data?.access_token
+    console.log("1")
+    console.log(response)
     axios.post(`${phillipUrl}/api/init/transaction`, {
       "partner_id": "MD",
       "merchant_id": "20231",
@@ -128,6 +132,8 @@ const getPaymentLink = async (amount, cifnumber) => {
   }, {
     headers: { Authorization: `Bearer ${token}` }
   }).then(response => {
+    console.log("2")
+    console.log(response)
       return {
         txnId: response.data.data.txn_id,
         paymentLink: response.data.data.url
