@@ -321,6 +321,7 @@ app.post('/payForCart', async(req, res) => {
     };
     const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
     const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
+    console.log(paymentLinkData)
     if(!paymentLinkData) {
       console.log("paymentLinkData is null")
       res.status(500).send()
