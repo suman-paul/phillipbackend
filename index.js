@@ -107,11 +107,9 @@ const getPaymentLink = async (amount, cifnumber) => {
     "client_secret": process.env.PHILLIP_PAY_CLIENT_SECRET,
     "scope": "txn-create"
   }).then(response => {
-    console.log("0ff")
-    console.log(response)
+    console.log("getPaymentLink 0")
     const token = response?.data?.access_token
-    console.log("1")
-    console.log(response)
+    console.log("getPaymentLink 1")
     axios.post(`${phillipUrl}/api/init/transaction`, {
       "partner_id": "MD",
       "merchant_id": "20231",
@@ -132,8 +130,7 @@ const getPaymentLink = async (amount, cifnumber) => {
   }, {
     headers: { Authorization: `Bearer ${token}` }
   }).then(response => {
-    console.log("2")
-    console.log(response)
+    console.log("getPaymentLink 2")
       return {
         txnId: response.data.data.txn_id,
         paymentLink: response.data.data.url
@@ -321,7 +318,6 @@ app.post('/payForCart', async(req, res) => {
     };
     const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
     const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
-    console.log(paymentLinkData)
     if(!paymentLinkData) {
       console.log("paymentLinkData is null")
       res.status(500).send()
@@ -413,10 +409,7 @@ app.get('/', async (req, res) => {
 
 const port = process.env.PORT || 8000
 
-app.listen(port, async () => {
+app.listen(port, () => {
   console.log(`listening on port ${port}`)
-  const paymentLinkData = await getPaymentLink(2.22, "CM955834")
-    console.log(paymentLinkData)
-  
 })
 
