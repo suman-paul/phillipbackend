@@ -309,7 +309,7 @@ app.post('/payForCart', async(req, res) => {
       const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
       console.log(adjustedAmount)
       console.log(cifnumber)
-      if(adjustedAmount == 0) {
+      if(adjustedAmount <= 0) {
         const orderId = await placeOrderInCartaloq(cifnumber, null)
         if(orderId) {
           res.status(200).json({txnId: orderId, paymentLink: null})
