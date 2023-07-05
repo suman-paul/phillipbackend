@@ -6,7 +6,7 @@ const app = express()
 var cors = require('cors');
 var jwt = require('jsonwebtoken');
 const { db } = require('./firebase-config-server');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } = require("firebase/firestore");
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, addDoc, collection } = require("firebase/firestore");
 const path = require('path');
 require('dotenv').config()
 
@@ -100,17 +100,16 @@ const getCartDataByCif = async (cifnumber) => {
 }
 
 const getPaymentLink = async (amount, cifnumber) => {
-  const txnId = randomUUID()
-  axios.post(`${phillipUrl}/oauth/token`, {
-    "grant_type": "client_credentials",
-    "client_id": process.env.PHILLIP_PAY_CLIENT_ID,
-    "client_secret": process.env.PHILLIP_PAY_CLIENT_SECRET,
-    "scope": "txn-create"
-  }).then(response => {
-    console.log("getPaymentLink 0")
-    const token = response?.data?.access_token
-    console.log("getPaymentLink 1")
-    axios.post(`${phillipUrl}/api/init/transaction`, {
+  const txnId = randomUUID();
+  try {
+    const tokenResponse = await axios.post(`${phillipUrl}/oauth/token`, {
+      "grant_type": "client_credentials",
+      "client_id": process.env.PHILLIP_PAY_CLIENT_ID,
+      "client_secret": process.env.PHILLIP_PAY_CLIENT_SECRET,
+      "scope": "txn-create"
+    });
+    const token = tokenResponse?.data?.access_token;
+    const initTxnResponse = await axios.post(`${phillipUrl}/api/init/transaction`, {
       "partner_id": "MD",
       "merchant_id": "20231",
       "merchant_name": "Loyalty MD",
@@ -127,60 +126,47 @@ const getPaymentLink = async (amount, cifnumber) => {
       "country_code": "KH",
       "success_redirect": `${serverUrl}/redirect_payment_success/${cifnumber}/${txnId}`,
       "fail_redirect": `${serverUrl}/redirect_payment_fail/${cifnumber}/${txnId}`
-  }, {
-    headers: { Authorization: `Bearer ${token}` }
-  }).then(response => {
-    console.log("getPaymentLink 2")
-      return {
-        txnId: response.data.data.txn_id,
-        paymentLink: response.data.data.url
-      }
-    })
-    .catch(error => {
-      console.log(error);
-      return null
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
     });
-  })
-  .catch(error => {
+    return {
+      txnId: initTxnResponse.data.data.txn_id,
+      paymentLink: initTxnResponse.data.data.url
+    };
+  } catch (error) {
     console.log(error);
-    return null
-  });
-}
+    return null;
+  }
+};
 
 const deleteCartFromFirestore = async (cifnumber) => {
-  const docRef = doc(db, "cart", cifnumber)
-  await deleteDoc(docRef)
-}
+  const docRef = doc(db, "cart", cifnumber);
+  await deleteDoc(docRef);
+};
 
 const saveOrderDataFirestore = async (cifnumber, orderId, txnId) => {
-  const docRef = doc(db, "order", txnId)
-  if(orderId) {
-    updateDoc(docRef, {
-      orderId: orderId,
-      cifnumber: cifnumber,
-      timestamp: serverTimestamp()
-    })
-  } else {
-    setDoc(docRef, {
-      cifnumber: cifnumber,
-      timestamp: serverTimestamp()
-    })
-  }
-}
+  await addDoc(collection(db, "order"), {
+    orderId: orderId,
+    txnId: txnId,
+    cifnumber: cifnumber,
+    timestamp: serverTimestamp()
+  })
+};
 
 const placeOrderInCartaloq = async (cifnumber, txnId) => {
-  const cartData = await getCartDataByCif(cifnumber)
-  const products = cartData.products
-  const appliedPoints = cartData.appliedPoints
-  const shippingData = cartData.shippingData
-  const lineItems = products.map((mproduct) => {
-    return {
-      'product_id': mproduct.productId,
-      'quantity': 1,
-      ...(mproduct.productVariationId && {'variation_id': mproduct.productVariationId})
-    }
-  })
-  const billingShipping = {
+  try {
+    const cartData = await getCartDataByCif(cifnumber);
+    const products = cartData.products;
+    const appliedPoints = cartData.appliedPoints;
+    const shippingData = cartData.shippingData;
+    const lineItems = products.map((mproduct) => {
+      return {
+        'product_id': mproduct.productId,
+        'quantity': 1,
+        ...(mproduct.productVariationId && { 'variation_id': mproduct.productVariationId })
+      };
+    });
+    const billingShipping = {
       "first_name": shippingData.firstName,
       "last_name": shippingData.lastName,
       "address_1": shippingData.address1,
@@ -188,34 +174,37 @@ const placeOrderInCartaloq = async (cifnumber, txnId) => {
       "city": shippingData.town,
       "state": shippingData.state,
       "postcode": shippingData.zip,
-      "country":shippingData.country,
+      "country": shippingData.country,
       "email": shippingData.email,
       "phone": shippingData.phone
+    };
+
+    const response = await api.post("orders", {
+      "payment_method": "phillip",
+      "payment_method_title": "Phillip Bank Transfer",
+      "set_paid": true,
+      "billing": billingShipping,
+      "shipping": billingShipping,
+      "line_items": lineItems,
+      "shipping_lines": [
+        {
+          "method_id": "flat_rate",
+          "method_title": "Flat Rate",
+          "total": "00.00"
+        }
+      ]
+    });
+
+    console.log("Order creation successful");
+    await saveOrderDataFirestore(cifnumber, response.data.id, txnId);
+    await deleteCartFromFirestore(cifnumber);
+    return response.data.id;
+  } catch (error) {
+    console.log("Order creation unsuccessful: ", error);
+    return null;
   }
-  api.post("orders", {
-    "payment_method": "phillip",
-    "payment_method_title": "Phillip Bank Transfer",
-    "set_paid": true,
-    "billing": billingShipping,
-    "shipping": billingShipping,
-    "line_items": lineItems,
-    "shipping_lines": [
-      {
-        "method_id": "flat_rate",
-        "method_title": "Flat Rate",
-        "total": "00.00"
-      }
-    ]
-  }).then((res)=> {
-    console.log("Order creation successful")
-    saveOrderDataFirestore(cifnumber, res.data.id, txnId)
-    deleteCartFromFirestore(cifnumber)
-    return res.data.id
-  }).catch((e)=>{
-    console.log("Order creation unsuccessful: ", e)
-    return null
-  })
-}
+};
+
 
 app.get('/', (req, res) => {
   res.send('Hello')
@@ -293,44 +282,62 @@ app.post('/memberTotalPoints', async(req, res) => {
 app.post('/payForCart', async(req, res) => {
   const cifnumber = req.body.cifnumber
   if(cifnumber) {
-    const cartData = await getCartDataByCif(cifnumber)
-    const products = cartData?.products
-    const appliedPoints = cartData?.appliedPoints
-    let price = 0
-    if(!products) {
-      console.log("products is null")
-      res.status(500).send() //if products is null then internal server error
-      return
-    }
-    for await (const mproduct of products) {
-      const pId = mproduct.productId
-      const vId = mproduct.productVariationId
-      const product = vId ?
-        (await getProductVariationByVariationId(pId, vId)).data :
-        (await getProductById(pId)).data
-      if(!product) {
-        console.log("product is null")
-        res.status(500).send() //if no product then internal server error
+    try {
+      const cartData = await getCartDataByCif(cifnumber)
+      const products = cartData?.products
+      const appliedPoints = cartData?.appliedPoints
+      let price = 0
+      if(!products) {
+        console.log("products is null")
+        res.status(500).send() //if products is null then internal server error
         return
-      } 
-      const productPrice = parseFloat(parseFloat(product?.price).toFixed(2))
-      price += productPrice
-    };
-    const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
-    const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
-    if(!paymentLinkData) {
-      console.log("paymentLinkData is null")
+      }
+      for await (const mproduct of products) {
+        const pId = mproduct.productId
+        const vId = mproduct.productVariationId
+        const product = vId ?
+          (await getProductVariationByVariationId(pId, vId)).data :
+          (await getProductById(pId)).data
+        if(!product) {
+          console.log("product is null")
+          res.status(500).send() //if no product then internal server error
+          return
+        }
+        const productPrice = parseFloat(parseFloat(product?.price).toFixed(2))
+        price += productPrice
+      };
+      const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
+      console.log(adjustedAmount)
+      console.log(cifnumber)
+      if(adjustedAmount == 0) {
+        const orderId = await placeOrderInCartaloq(cifnumber, null)
+        if(orderId) {
+          res.status(200).json({paymentLink: null, txnId: orderId})
+        } else {
+          res.status(500).send()
+        }
+        return
+      }
+      const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
+      console.log(paymentLinkData)
+      if(!paymentLinkData) {
+        console.log("paymentLinkData is null")
+        res.status(500).send()
+        return
+      }
+      const {txnId, paymentLink} = paymentLinkData
+      // saveOrderDataFirestore(cifnumber, null, txnId)
+      if(paymentLink) {
+        res.status(200).json(paymentLinkData)
+      } else {
+        console.log("paymentLink is null")
+        res.status(500).send()
+      }
+    } catch (error) {
+      console.log(error)
       res.status(500).send()
-      return
     }
-    const {txnId, paymentLink} = paymentLinkData
-    saveOrderDataFirestore(cifnumber, null, txnId)
-    if(paymentLink) {
-      res.status(200).json(paymentLinkData)
-    } else {
-      console.log("paymentLink is null")
-      res.status(500).send()
-    }
+    
   } else {
     res.status(300).send()
   }
@@ -343,18 +350,15 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
 
     const docSnap = await getDoc(docRef);
     if(docSnap.exists()) {
-      placeOrderInCartaloq(cifnumber, txnId)
-      res.status(200).send()
+      const orderId = await placeOrderInCartaloq(cifnumber, txnId)
+      if(orderId) {
+        res.status(200).json({paymentLink: null, txnId: orderId})
+      } else {
+        res.status(500).send()
+      }
     } else {
       res.status(500).send()
-    }
-  
-    // const orderId = await placeOrderInCartaloq(cifnumber, txnId)
-    // if(orderId) {
-    //   res.status(200).json(orderId)
-    // } else {
-    //   res.status(500).send()
-    // }
+    }  
 })
 
 app.post('/sendEncryptedCif', async(req, res) => {
@@ -412,4 +416,3 @@ const port = process.env.PORT || 8000
 app.listen(port, () => {
   console.log(`listening on port ${port}`)
 })
-
