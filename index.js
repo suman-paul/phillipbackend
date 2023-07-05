@@ -312,14 +312,13 @@ app.post('/payForCart', async(req, res) => {
       if(adjustedAmount == 0) {
         const orderId = await placeOrderInCartaloq(cifnumber, null)
         if(orderId) {
-          res.status(200).json({paymentLink: null, txnId: orderId})
+          res.status(200).json({txnId: orderId, paymentLink: null})
         } else {
           res.status(500).send()
         }
         return
       }
       const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
-      console.log(paymentLinkData)
       if(!paymentLinkData) {
         console.log("paymentLinkData is null")
         res.status(500).send()
@@ -352,7 +351,7 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
     if(docSnap.exists()) {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
       if(orderId) {
-        res.status(200).json({paymentLink: null, txnId: orderId})
+        res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
         res.status(500).send()
       }
