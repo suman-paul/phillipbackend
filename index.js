@@ -345,19 +345,32 @@ app.post('/payForCart', async(req, res) => {
 app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
     const cifnumber = req.params.cifnumber
     const txnId = req.params.txnId
-    const docRef = doc(db, "order", txnId)
 
-    const docSnap = await getDoc(docRef);
-    if(docSnap.exists()) {
+    try {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
       if(orderId) {
         res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
         res.status(500).send()
       }
-    } else {
+    } catch (error) {
       res.status(500).send()
-    }  
+    }
+    
+
+    // const docRef = doc(db, "order", txnId)
+
+    // const docSnap = await getDoc(docRef);
+    // if(docSnap.exists()) {
+    //   const orderId = await placeOrderInCartaloq(cifnumber, txnId)
+    //   if(orderId) {
+    //     res.status(200).json({txnId: orderId, paymentLink: null})
+    //   } else {
+    //     res.status(500).send()
+    //   }
+    // } else {
+    //   res.status(500).send()
+    // }  
 })
 
 app.post('/sendEncryptedCif', async(req, res) => {
