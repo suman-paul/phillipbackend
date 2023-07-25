@@ -156,6 +156,10 @@ const saveOrderDataFirestore = async (cifnumber, orderId, txnId) => {
 const placeOrderInCartaloq = async (cifnumber, txnId) => {
   try {
     const cartData = await getCartDataByCif(cifnumber);
+    if(!cartData) {
+      console.log("Cart is empty");
+      return;
+    }
     const products = cartData.products;
     const appliedPoints = cartData.appliedPoints;
     const shippingData = cartData.shippingData;
