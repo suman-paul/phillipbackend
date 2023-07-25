@@ -288,6 +288,10 @@ app.post('/payForCart', async(req, res) => {
   if(cifnumber) {
     try {
       const cartData = await getCartDataByCif(cifnumber)
+      if(!cartData) {
+        console.log("Cart is empty");
+        return;
+      }
       const products = cartData?.products
       const appliedPoints = cartData?.appliedPoints
       let price = 0
