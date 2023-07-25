@@ -158,7 +158,7 @@ const placeOrderInCartaloq = async (cifnumber, txnId) => {
     const cartData = await getCartDataByCif(cifnumber);
     if(!cartData) {
       console.log("Cart is empty");
-      return;
+      return -1;
     }
     const products = cartData.products;
     const appliedPoints = cartData.appliedPoints;
@@ -315,7 +315,7 @@ app.post('/payForCart', async(req, res) => {
       console.log(cifnumber)
       if(adjustedAmount <= 0) {
         const orderId = await placeOrderInCartaloq(cifnumber, null)
-        if(orderId) {
+        if(orderId && (orderId != -1)) {
           res.status(200).json({txnId: orderId, paymentLink: null})
         } else {
           res.status(500).send()
@@ -352,7 +352,7 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
 
     try {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
-      if(orderId) {
+      if(orderId && (orderId != -1)) {
         res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
         res.status(500).send()
