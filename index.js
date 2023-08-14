@@ -6,7 +6,7 @@ const app = express()
 var cors = require('cors');
 var jwt = require('jsonwebtoken');
 const { db } = require('./firebase-config-server');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, addDoc, collection } = require("firebase/firestore");
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, addDoc, collection, or } = require("firebase/firestore");
 const path = require('path');
 require('dotenv').config()
 
@@ -359,9 +359,11 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
       if(orderId && (orderId != -1)) {
         res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
+        console.log("orderId: " + orderId)
         res.status(500).send()
       }
     } catch (error) {
+      console.log(error)
       res.status(500).send()
     }
     
