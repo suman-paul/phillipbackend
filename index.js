@@ -283,6 +283,30 @@ app.post('/memberTotalPoints', async(req, res) => {
   });
 })
 
+function callNativeJsBridge(cifnumber, adjustedAmount) {
+  return new Promise(function(resolve, reject) {
+    // Check if JsBridge is available on Android
+    if (window.WebViewJavascriptBridge) {
+        window.WebViewJavascriptBridge.callHandler('openPaymentHandler', { cifnumber, adjustedAmount }, function(response) {
+            // Handle Android response and resolve the Promise
+            console.log("Android jsBridge call with response "+ response);
+            resolve(response);
+        });
+    }
+
+    // Check if WKWebViewJavascriptBridge is available on iOS
+    if (window.WKWebViewJavascriptBridge) {
+        window.WKWebViewJavascriptBridge.callHandler('openPaymentHandler', { cifnumber, adjustedAmount }, function(response) {
+            // Handle iOS response and resolve the Promise
+            console.log("iOS jsBridge call with response "+ response);
+            resolve(response);
+        });
+    }
+
+    // Handle errors or rejections if necessary
+});
+}
+
 app.post('/payForCart', async(req, res) => {
   const cifnumber = req.body.cifnumber
   if(cifnumber) {
@@ -317,29 +341,36 @@ app.post('/payForCart', async(req, res) => {
       const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
       console.log(adjustedAmount)
       console.log(cifnumber)
-      if(adjustedAmount <= 0) {
-        const orderId = await placeOrderInCartaloq(cifnumber, null)
-        if(orderId && (orderId != -1)) {
-          res.status(200).json({txnId: orderId, paymentLink: null})
-        } else {
-          res.status(500).send()
+      if(adjustedAmount > 0) {
+        const response = await callNativeJsBridge(cifnumber, adjustedAmount);
+        console.log("response after jsBridge call "+response)
+        if(response !== `PaymentSuccess for ${cifnumber}`) {
+          // const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
+          // if(!paymentLinkData) {
+          //   console.log("paymentLinkData is null")
+          //   res.status(500).send()
+          //   return
+          // }
+          // const {txnId, paymentLink} = paymentLinkData
+          // // saveOrderDataFirestore(cifnumber, null, txnId)
+          // if(paymentLink) {
+          //   res.status(200).json(paymentLinkData)
+          // } else {
+          //   console.log("paymentLink is null")
+          //   res.status(500).send()
+          // }
+          return
         }
-        return
       }
-      const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
-      if(!paymentLinkData) {
-        console.log("paymentLinkData is null")
-        res.status(500).send()
-        return
-      }
-      const {txnId, paymentLink} = paymentLinkData
-      // saveOrderDataFirestore(cifnumber, null, txnId)
-      if(paymentLink) {
-        res.status(200).json(paymentLinkData)
+
+      //create order in cartaloq if everything above succeed
+      const orderId = await placeOrderInCartaloq(cifnumber, null)
+      if(orderId && (orderId != -1)) {
+        res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
-        console.log("paymentLink is null")
         res.status(500).send()
       }
+      
     } catch (error) {
       console.log(error)
       res.status(500).send()
