@@ -202,6 +202,7 @@ const placeOrderInCartaloq = async (cifnumber, txnId) => {
     console.log("Order creation successful");
     await saveOrderDataFirestore(cifnumber, response.data.id, txnId);
     await deleteCartFromFirestore(cifnumber);
+    await callPhillipRealtimeAPI(orderId, cifnumber)
     return response.data.id;
   } catch (error) {
     console.log("Order creation unsuccessful: ", error);
@@ -209,6 +210,16 @@ const placeOrderInCartaloq = async (cifnumber, txnId) => {
   }
 };
 
+const callPhillipRealtimeAPI = async (orderId, cifnumber) => {
+  const response = await axios.post("https://apigw-uat.phillipbank.com.kh/md-internal/v1/redeem-hook", {
+    "point": 0,
+    "reference_id": orderId,
+    "cif_number": cifnumber
+  }, {
+    headers: { Authorization: "Bearer eyJ4NXQiOiJOMkpqTWpOaU0yRXhZalJrTnpaalptWTFZVEF4Tm1GbE5qZzRPV1UxWVdRMll6YzFObVk1TlEiLCJraWQiOiJNREpsTmpJeE4yRTFPR1psT0dWbU1HUXhPVEZsTXpCbU5tRmpaalEwWTJZd09HWTBOMkkwWXpFNFl6WmpOalJoWW1SbU1tUTBPRGRpTkRoak1HRXdNQV9SUzI1NiIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJhZG1pbiIsImF1dCI6IkFQUExJQ0FUSU9OIiwiYXVkIjoiVmJveWdSOVNhWmU5UV96X0FpRGg3MnhIMV9ZYSIsIm5iZiI6MTY5MTU2ODYyNywiYXpwIjoiVmJveWdSOVNhWmU5UV96X0FpRGg3MnhIMV9ZYSIsInNjb3BlIjoiZGVmYXVsdCIsImlzcyI6Imh0dHBzOlwvXC9hcGljcC11YXQucGhpbGxpcGJhbmsuY29tLmtoOjQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InNpZ25pbmdfdGVuYW50IjoiY2FyYm9uLnN1cGVyIn0sImV4cCI6MTY5MTU3MjIyNywiaWF0IjoxNjkxNTY4NjI3LCJqdGkiOiIxZTJlYjNjNy0wMTQ2LTRhZGMtOTg0Zi1jNWUxMTM5NjA1NGYifQ.jI1YWEbEU1jzbCdIeQ4DTjfIUlFQ4iJpkPWs64oBxevTK6bPh8V0btkGnftuLNxGuMGYwVfC09pwOnPYo4MpnFLmToCz0xo-sXOZpiFRNxQU1-Xfm63o2t2cPW9IF8D-MaWkmgJm07tyo5xpTu9hpkPGmr5OGdw7bijpjaijnlb7CjpFP5vch7GXJMEwc9UmowBd31vKyO1TJMGxw2x-0YSEI_em8G8V4N1-SIjktcOHEkkk8c5rKOTPRJFZ0TZn2ry7IKG4bHGtwfkO4_7X-ydErPx-997IelVW4FLdePzwD2SWPy_olhk5lO0MqRr0CmyOzdbuUXdgv2N_4EXTug" }
+  });
+  console.log(response)
+}
 
 app.get('/', (req, res) => {
   res.send('Hello')
@@ -282,30 +293,6 @@ app.post('/memberTotalPoints', async(req, res) => {
     res.json(null)
   });
 })
-
-function callNativeJsBridge(cifnumber, adjustedAmount) {
-  return new Promise(function(resolve, reject) {
-    // Check if JsBridge is available on Android
-    if (window.WebViewJavascriptBridge) {
-        window.WebViewJavascriptBridge.callHandler('openPaymentHandler', { cifnumber, adjustedAmount }, function(response) {
-            // Handle Android response and resolve the Promise
-            console.log("Android jsBridge call with response "+ response);
-            resolve(response);
-        });
-    }
-
-    // Check if WKWebViewJavascriptBridge is available on iOS
-    if (window.WKWebViewJavascriptBridge) {
-        window.WKWebViewJavascriptBridge.callHandler('openPaymentHandler', { cifnumber, adjustedAmount }, function(response) {
-            // Handle iOS response and resolve the Promise
-            console.log("iOS jsBridge call with response "+ response);
-            resolve(response);
-        });
-    }
-
-    // Handle errors or rejections if necessary
-});
-}
 
 app.post('/payForCart', async(req, res) => {
   const cifnumber = req.body.cifnumber
