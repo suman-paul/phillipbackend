@@ -329,26 +329,26 @@ app.post('/payForCart', async(req, res) => {
       console.log(adjustedAmount)
       console.log(cifnumber)
       if(adjustedAmount > 0) {
-        res.status(200).json({txnId: "jsBridge", paymentLink: adjustedAmount})
-        return
+        // res.status(200).json({txnId: "jsBridge", paymentLink: adjustedAmount})
+        // return
         // const response = await callNativeJsBridge(cifnumber, adjustedAmount);
         // console.log("response after jsBridge call "+response)
         // if(response !== `PaymentSuccess for ${cifnumber}`) {
-        //   // const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
-        //   // if(!paymentLinkData) {
-        //   //   console.log("paymentLinkData is null")
-        //   //   res.status(500).send()
-        //   //   return
-        //   // }
-        //   // const {txnId, paymentLink} = paymentLinkData
-        //   // // saveOrderDataFirestore(cifnumber, null, txnId)
-        //   // if(paymentLink) {
-        //   //   res.status(200).json(paymentLinkData)
-        //   // } else {
-        //   //   console.log("paymentLink is null")
-        //   //   res.status(500).send()
-        //   // }
-        //   return
+          const paymentLinkData = await getPaymentLink(adjustedAmount, cifnumber)
+          if(!paymentLinkData) {
+            console.log("paymentLinkData is null")
+            res.status(500).send()
+            return
+          }
+          const {txnId, paymentLink} = paymentLinkData
+          // saveOrderDataFirestore(cifnumber, null, txnId)
+          if(paymentLink) {
+            res.status(200).json(paymentLinkData)
+          } else {
+            console.log("paymentLink is null")
+            res.status(500).send()
+          }
+          return
         // }
       }
 
@@ -386,7 +386,7 @@ app.post('/place_order', async (req, res) => {
   }
 })
 
-app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
+app.get('/call_redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
     const cifnumber = req.params.cifnumber
     const txnId = req.params.txnId
 
