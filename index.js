@@ -14,12 +14,12 @@ app.use(cors())
 app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.json())
 
-const WooCommerceRestApi = require("@woocommerce/woocommerce-rest-api").default;
-
 const loyalityUrl = process.env.LOYALITY_URL;
 const phillipUrl = process.env.PHILLIP_PAY_URL;
 const serverUrl = 'https://phillip.cyclic.app';
 const jwtSecretToken = process.env.JWT_SECRET_KEY;
+
+const WooCommerceRestApi = require("@woocommerce/woocommerce-rest-api").default;
 
 const api = new WooCommerceRestApi({
   url: "https://www.cartaloq.com",
@@ -131,7 +131,8 @@ const getPaymentLink = async (amount, cifnumber) => {
     });
     return {
       txnId: initTxnResponse.data.data.txn_id,
-      paymentLink: initTxnResponse.data.data.url
+      // paymentLink: initTxnResponse.data.data.url
+      paymentLink: initTxnResponse.data.data.dplink
     };
   } catch (error) {
     console.log(error);
@@ -198,22 +199,26 @@ const placeOrderInCartaloq = async (cifnumber, txnId) => {
         }
       ]
     });
-
-    console.log("Order creation successful");
-    await saveOrderDataFirestore(cifnumber, response.data.id, txnId);
-    await deleteCartFromFirestore(cifnumber);
-    await callPhillipRealtimeAPI(orderId, cifnumber)
+    console.log("Order created with id: "+response.data.id);
+    try {
+      await saveOrderDataFirestore(cifnumber, response.data.id, txnId);
+      await deleteCartFromFirestore(cifnumber);
+      await callPhillipRealtimeAPI(cifnumber, txnId ?? response.data.id?.toString());
+    } catch (error) {
+      console.log(error)
+    }
     return response.data.id;
   } catch (error) {
     console.log("Order creation unsuccessful: ", error);
     return null;
   }
+  
 };
 
-const callPhillipRealtimeAPI = async (orderId, cifnumber) => {
+const callPhillipRealtimeAPI = async (cifnumber, txnId) => {
   const response = await axios.post("https://apigw-uat.phillipbank.com.kh/md-internal/v1/redeem-hook", {
     "point": 0,
-    "reference_id": orderId,
+    "reference_id": txnId,
     "cif_number": cifnumber
   }, {
     headers: { Authorization: "Bearer eyJ4NXQiOiJOMkpqTWpOaU0yRXhZalJrTnpaalptWTFZVEF4Tm1GbE5qZzRPV1UxWVdRMll6YzFObVk1TlEiLCJraWQiOiJNREpsTmpJeE4yRTFPR1psT0dWbU1HUXhPVEZsTXpCbU5tRmpaalEwWTJZd09HWTBOMkkwWXpFNFl6WmpOalJoWW1SbU1tUTBPRGRpTkRoak1HRXdNQV9SUzI1NiIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJhZG1pbiIsImF1dCI6IkFQUExJQ0FUSU9OIiwiYXVkIjoiVmJveWdSOVNhWmU5UV96X0FpRGg3MnhIMV9ZYSIsIm5iZiI6MTY5MTU2ODYyNywiYXpwIjoiVmJveWdSOVNhWmU5UV96X0FpRGg3MnhIMV9ZYSIsInNjb3BlIjoiZGVmYXVsdCIsImlzcyI6Imh0dHBzOlwvXC9hcGljcC11YXQucGhpbGxpcGJhbmsuY29tLmtoOjQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InNpZ25pbmdfdGVuYW50IjoiY2FyYm9uLnN1cGVyIn0sImV4cCI6MTY5MTU3MjIyNywiaWF0IjoxNjkxNTY4NjI3LCJqdGkiOiIxZTJlYjNjNy0wMTQ2LTRhZGMtOTg0Zi1jNWUxMTM5NjA1NGYifQ.jI1YWEbEU1jzbCdIeQ4DTjfIUlFQ4iJpkPWs64oBxevTK6bPh8V0btkGnftuLNxGuMGYwVfC09pwOnPYo4MpnFLmToCz0xo-sXOZpiFRNxQU1-Xfm63o2t2cPW9IF8D-MaWkmgJm07tyo5xpTu9hpkPGmr5OGdw7bijpjaijnlb7CjpFP5vch7GXJMEwc9UmowBd31vKyO1TJMGxw2x-0YSEI_em8G8V4N1-SIjktcOHEkkk8c5rKOTPRJFZ0TZn2ry7IKG4bHGtwfkO4_7X-ydErPx-997IelVW4FLdePzwD2SWPy_olhk5lO0MqRr0CmyOzdbuUXdgv2N_4EXTug" }
