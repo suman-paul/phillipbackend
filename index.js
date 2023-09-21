@@ -398,8 +398,14 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
     try {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
       if(orderId && (orderId != -1)) {
-        res.redirect(`${serverUrl}/redirect_payment_success/${cifnumber}/${txnId}`)
-        res.status(200).json({txnId: orderId, paymentLink: null})
+        try {
+          const successUrl = `/redirect_payment_success/${cifnumber}/${txnId}`;
+          console.log(successUrl)
+          res.redirect(successUrl);
+        } catch (error) {
+          console.log(error)
+        }
+        // res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
         console.log("orderId: " + orderId)
         res.status(200).json({txnId: null, paymentLink: null})
