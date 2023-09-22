@@ -331,8 +331,8 @@ app.post('/payForCart', async(req, res) => {
         price += productPrice
       };
       const adjustedAmount = price - parseFloat((parseFloat(appliedPoints) / 100).toFixed(2))
-      console.log(adjustedAmount)
-      console.log(cifnumber)
+      // console.log(adjustedAmount)
+      // console.log(cifnumber)
       if(adjustedAmount > 0) {
         // res.status(200).json({txnId: "jsBridge", paymentLink: adjustedAmount})
         // return
@@ -397,18 +397,23 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
 
     try {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
+      console.log("000")
       if(orderId && (orderId != -1)) {
+        console.log("111")
         try {
+          console.log("222")
           const successUrl = `/redirect_payment_success/${cifnumber}/${txnId}`;
-          console.log(successUrl)
-          res.redirect(successUrl);
+          console.log(successUrl);
+          console.log("333")
+          res.status(200).send()
+          // res.redirect(successUrl);
         } catch (error) {
           console.log(error)
         }
         // res.status(200).json({txnId: orderId, paymentLink: null})
       } else {
-        console.log("orderId: " + orderId)
-        res.status(200).json({txnId: null, paymentLink: null})
+        console.log("orderId: " + orderId);
+        res.status(200).json({txnId: null, paymentLink: null});
       }
     } catch (error) {
       console.log(error)
