@@ -405,8 +405,9 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
           const successUrl = `/redirect_payment_success/${cifnumber}/${txnId}`;
           console.log(successUrl);
           console.log("333")
-          res.status(200).send()
-          // res.redirect(successUrl);
+          // res.status(200).send()
+          res.redirect(200, successUrl);
+          console.log("444")
         } catch (error) {
           console.log(error)
         }
