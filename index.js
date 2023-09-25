@@ -2,7 +2,8 @@ const express = require('express')
 const axios = require('axios');
 const AesEncryption = require('aes-encryption')
 const { randomUUID } = require('crypto');
-const app = express()
+const app = express();
+const WebSocket = require('ws');
 var cors = require('cors');
 var jwt = require('jsonwebtoken');
 const { db } = require('./firebase-config-server');
@@ -13,6 +14,11 @@ require('dotenv').config()
 app.use(cors())
 app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.json())
+
+const port = process.env.PORT || 8000
+const server = app.listen(port, () => {
+  console.log(`listening on port ${port}`)
+})
 
 const loyalityUrl = process.env.LOYALITY_URL;
 const phillipUrl = process.env.PHILLIP_PAY_URL;
@@ -27,6 +33,8 @@ const api = new WooCommerceRestApi({
   consumerSecret: process.env.WOO_CONSUMER_SECRET,
   version: "wc/v3"
 });
+
+const wss = new WebSocket.Server({ server });
 
 // const api = {
 //   get: async function (url, params = {}) {
@@ -397,17 +405,16 @@ app.get('/redirect_payment_success/:cifnumber/:txnId', async (req, res) => {
 
     try {
       const orderId = await placeOrderInCartaloq(cifnumber, txnId)
-      console.log("000")
       if(orderId && (orderId != -1)) {
-        console.log("111")
         try {
-          console.log("222")
           const successUrl = `/redirect_payment_success/${cifnumber}/${txnId}`;
-          console.log(successUrl);
-          console.log("333")
-          // res.status(200).send()
-          res.redirect(200, successUrl);
-          console.log("444")
+          // Trigger the redirect by sending a WebSocket message to connected clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ redirectTo: successUrl }));
+            }
+          });
+          res.status(200).send('Redirect triggered.');
         } catch (error) {
           console.log(error)
         }
@@ -472,8 +479,13 @@ app.get('/', async (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 })
 
-const port = process.env.PORT || 8000
+wss.on('connection', (ws) => {
+  console.log('Client connected');
 
-app.listen(port, () => {
-  console.log(`listening on port ${port}`)
-})
+  // Optionally, you can handle disconnects
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+
